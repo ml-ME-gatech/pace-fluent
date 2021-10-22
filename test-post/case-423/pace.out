@@ -1,0 +1,20 @@
+---------------------------------------
+Begin PBS Prologue Thu Aug 19 14:04:49 EDT 2021
+Job ID:     2601492.sched-torque.pace.gatech.edu
+User ID:    mlanahan3
+Job name:   case-423
+Queue:      inferno
+End PBS Prologue Thu Aug 19 14:04:49 EDT 2021
+---------------------------------------
+---------------------------------------
+Begin PBS Epilogue Thu Aug 19 19:18:57 EDT 2021
+Job ID:     2601492.sched-torque.pace.gatech.edu
+User ID:    mlanahan3
+Job name:   case-423
+Resources:  walltime=12:00:00,pmem=8gb,nodes=1:ppn=12,neednodes=1:ppn=12
+Rsrc Used:  cput=62:33:58,vmem=30103476kb,walltime=05:14:08,mem=22153860kb,energy_used=0
+Queue:      inferno
+Nodes:     
+atl1-1-02-012-21-r.pace.gatech.edu
+End PBS Epilogue Thu Aug 19 19:18:57 EDT 2021
+---------------------------------------

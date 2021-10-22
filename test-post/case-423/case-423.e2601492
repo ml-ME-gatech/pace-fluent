@@ -1,0 +1,9 @@
+Unloading mvapich2 module to avoid internal conflict with Ansys.
+Unloading xalt module to avoid internal ld conflict with Ansys.
+Cleanup script file is /storage/coda1/p-my14/0/mlanahan3/michael/co2/initial_cases/co2_init/case-423/cleanup-fluent-atl1-1-02-012-21-r.pace.gatech.edu-336653.sh
+sched_setaffinity() call failed: Invalid argument
+sched_setaffinity() call failed: Invalid argument
+sched_setaffinity() call failed: Invalid argument
+sched_setaffinity() call failed: Invalid argument
+sched_setaffinity() call failed: Invalid argument
+sched_setaffinity() call failed: Invalid argument

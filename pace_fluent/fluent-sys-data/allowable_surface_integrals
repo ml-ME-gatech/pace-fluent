@@ -1,0 +1,10 @@
+area                                            sum
+area-weighted-avg                               uniformity-index-area-weighted
+facet-avg                                       uniformity-index-mass-weighted
+facet-max                                       vector-based-flux
+facet-min                                       vector-flux
+flow-rate                                       vector-weighted-average
+integral                                        vertex-avg
+mass-flow-rate                                  vertex-max
+mass-weighted-avg                               vertex-min
+standard-deviation                              volume-flow-rate

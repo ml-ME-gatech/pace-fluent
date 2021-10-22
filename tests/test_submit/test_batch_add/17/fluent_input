@@ -1,0 +1,70 @@
+file/start-transcript solution.trn
+sync-chdir ..
+file/read-case modified_HEMJ60deg-3.cas
+sync-chdir 17
+
+;Boundary Conditions
+
+/define/boundary-conditions/mass-flow-inlet
+mass-flow-inlet
+yes
+no
+yes
+no
+101.14073821221558
+no
+873.15
+no
+10000000.0
+no
+yes
+yes
+no
+1.083850114154779
+no
+277.64464969482
+/define/boundary-conditions/pressure-outlet
+pressure-outlet
+yes
+no
+10000000.0
+no
+873.15
+no
+yes
+yes
+no
+0.6830554260712295
+no
+275.50068572692584
+yes
+no
+no
+no
+/define/boundary-conditions/wall
+heated-surf
+0
+no
+0
+no
+no
+no
+15000000.0
+no
+no
+1
+solve/initialize/hyb-initialization
+solve/iterate 650
+parallel timer usage
+
+;Post Processing
+
+/report/surface-integrals/area-weighted-avg
+13
+ , 
+temperature
+yes
+modified_HEMJ60deg-3-area-weighted-avg-13-temperature
+file/write-case result.cas
+file/write-data result.dat
+exit

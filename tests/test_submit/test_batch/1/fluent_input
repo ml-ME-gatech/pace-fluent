@@ -1,0 +1,14 @@
+file/start-transcript solution.trn
+file/read-case test1.cas
+
+;Boundary Conditions
+
+solve/initialize/hyb-initialization
+solve/iterate 200
+parallel timer usage
+
+;Post Processing
+
+file/write-case result.cas
+file/write-data result.dat
+exit

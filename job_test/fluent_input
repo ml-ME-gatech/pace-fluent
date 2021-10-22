@@ -1,8 +1,0 @@
-/file/start-transcript solution.trn
-/file/read-case test.cas
-/solve/initialize/hyb-initialization
-/solve/iterate 200
-/parallel timer usage
-/file/write-case case_result.cas
-/file/write-data results_ouput.dat
-/exit

@@ -1,0 +1,13 @@
+#PBS  -N 45
+#PBS  -A GT-my14
+#PBS  -q inferno
+#PBS  -o pace.out
+#PBS  -l walltime=06:00:00
+#PBS  -l pmem=8gb
+#PBS  -l nodes=1:ppn=8
+#PBS  -M mlanahan3@gatech.edu
+#PBS  -m abe
+
+cd $PBS_O_WORKDIR
+module load ansys/2019R3
+fluent 3ddp -t8 -mpi=pcmpi -cnf=$PBS_NODEFILE  -g < fluent_input > outputfile
