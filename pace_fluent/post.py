@@ -15,7 +15,7 @@ from .filesystem import TableFileSystem
 """
 Author: Michael Lanahan
 Date Created: 09.07.2021
-Last Edit: 09.08.2021
+Last Edit: 11.03.2021
 
 Description:
 It may be the case that after simulations are run, various post-processing is desired 
@@ -33,6 +33,8 @@ SURFACE_INTEGRAL_FILE_DELIM = '-'
 SURFACE_INTEGRAL_EXT = '.srp'
 FLUENT_INPUT_NAME = 'input.fluent'
 FLUENT_OUTPUT_NAME = 'output.fluent'
+FLUENT_CASE_EXT = '.cas'
+FLUENT_DATA_EXT = '.dat'
 
 #Set up the pathlib here based on the system we are on - since this code 
 #will likely be used on both windows and posix systems need to make compatible with
@@ -57,7 +59,7 @@ class PostEngine:
         
         self.path,file_name = os.path.split(file)
         self.spec = specification
-        self.__num_processors = 1
+        self.__num_processors = num_processors
         self.__input = reader(file_name)
         self._additional_txt = ''
         self.input_file = os.path.join(self.path,FLUENT_INPUT_NAME)
@@ -76,9 +78,9 @@ class PostEngine:
         
         if system == 'windows':
             return WINDOWS_FLUENT_INIT_STATEMENT.format(self.spec,
-                                                    self.num_processors,
-                                                    FLUENT_INPUT_NAME,
-                                                    FLUENT_OUTPUT_NAME) + EXIT_CHAR
+                                                        self.num_processors,
+                                                        FLUENT_INPUT_NAME,
+                                                        FLUENT_OUTPUT_NAME) + EXIT_CHAR
     
 
     @property
@@ -152,42 +154,51 @@ class SurfaceIntegrals:
                       id: str,
                       variable: str,
                       surface_type: str,
-                      engine = PostEngine
+                      engine = PostEngine,
+                      id_pad = 1,
+                      **engine_kwargs
                   ):
         
         #attempt to instantiate the engine - if the engine isn't callable
         #then assume that this is being used at the end of computation
         try:
-            self.engine = engine(file)
+            self.engine = engine(file,**engine_kwargs)
         except TypeError:
             self.engine = None
         
         self.file = file
-        if not isinstance(id,list):
-            self.id = [id]
-        else:
-            self.id = id
+        self.id,self.variable,self.surface_type  = \
+             self._validate_constructor_args(id,variable,surface_type)
         
-        self.variable = variable
-        self.surface_type = surface_type
-        self.delete = True
+        file_names = [self._generate_file_name(self.file,st,id,var) for st,id,var 
+                      in zip(self.surface_type,self.id,self.variable)]
 
-    @property
-    def prefix(self):
-        return self._prefix.format(self.surface_type)
+        self.delete = {fname: True for fname in file_names}
+        self.id_pad = id_pad
+
+    @staticmethod
+    def _validate_constructor_args(id: list,
+                                   variable: list,
+                                   surface_type: list) -> tuple:
+
+        return _surface_construction_arg_validator(id,variable,surface_type)
     
-    @property
-    def file_name(self):
+    def prefix(self,surface_type: str):
+        return self._prefix.format(surface_type)
+    
+    def file_name(self,id: str,
+                       surface_type: str,
+                       variable: str):
         """
         get the filename to write the surface integral to
         """
         fname = self._generate_file_name(self.file,
-                                         self.surface_type,
-                                         self.id,
-                                         self.variable)
+                                         surface_type,
+                                         id,
+                                         variable)
         
-        if self.delete:
-            self.delete = False
+        if self.delete[fname]:
+            self.delete[fname] = False
             if os.path.exists(fname):
                 os.remove(fname)
             
@@ -197,14 +208,28 @@ class SurfaceIntegrals:
         """
         format the text for the call to the surface integral here
         """
-        txt = self.prefix + LINE_BREAK
-        for id in self.id:
-            txt += id + LINE_BREAK
-        txt += ' , ' + LINE_BREAK
-        txt += self.variable + LINE_BREAK
-        txt += 'yes' + LINE_BREAK
-        _,_file = os.path.split(self.file_name)
-        txt += _file + LINE_BREAK
+
+        txt = ''
+        
+        shortest_id = min([len(id) for id in self.id])
+        for ids,variable,surface_type in zip(self.id,self.variable,self.surface_type):
+            txt += self.prefix(surface_type) + LINE_BREAK
+            for id in ids:
+                txt += id + LINE_BREAK
+            
+            
+            if len(ids) < shortest_id + self.id_pad:
+                diff = len(ids) - shortest_id
+                for _ in range(self.id_pad - diff):
+                    txt += ' , ' + LINE_BREAK 
+            else:
+                txt += ' , ' + LINE_BREAK
+            
+            txt += variable + LINE_BREAK
+            txt += 'yes' + LINE_BREAK
+            _,_file = os.path.split(self.file_name(ids,surface_type,variable))
+            txt += _file + LINE_BREAK
+        
         return txt
 
     def __call__(self,
@@ -213,9 +238,12 @@ class SurfaceIntegrals:
         #enables the post module to simply be passed as txt
         #if the engine is not callable
         if self.engine is not None:
+
             self.engine.insert_text(self.format_text())
             engine_ouput = self.engine()
-            sif = SurfaceIntegralFile(self.file_name)
+            sif = []
+            for ids,variable,surface_type in zip(self.id,self.variable,self.surface_type):
+                sif.append(SurfaceIntegralFile(self.file_name(ids,surface_type,variable)))
 
             if return_engine:
                 return sif,engine_ouput
@@ -245,6 +273,7 @@ class SurfaceIntegralFile:
     as of 10.01.2021 now supports multiple surfaces but not multiple variables per surface
     """
     def __init__(self,file: str):
+        
         self.path = _Path(file)
         self.attributes = {'type':None,
                            'name':None,
@@ -260,8 +289,6 @@ class SurfaceIntegralFile:
 
         configured to read multiple surfaces but not multiple variables (is this possible?)
         """
-
-        
         #this first line here reads the header information on the file
         try:
             self.attributes['type'] =  lines[2].strip()
@@ -356,37 +383,61 @@ def combine_batches(batch_folder1: str,
 
 class SurfaceIntegralBatch:
 
+    """
+    Extends the SurfaceIntegrals to work with batch
+    folder structures
+    """
+
     def __init__(self,folder: str,
-                      id: str,
-                      variable: str,
-                      surface_type: str,
+                      id: list,
+                      variable: list,
+                      surface_type: list,
                       engine = PostEngine,
                       folders = [],
-                      *args,
-                      **kwargs):
+                      id_pad = 1,
+                      **engine_kwargs):
+
+        self.id,self.variable,self.surface_type  = \
+             self._validate_constructor_args(id,variable,surface_type)
 
         self.fs = TableFileSystem(folder)
-        self.id = id
-        self.variable = variable
-        self.surface_type = surface_type
         self.engine = engine
         self.surface_integrals = {}
         self.df = None
         self.folders = folders
+        self.engine_kwargs = engine_kwargs
+        self.id_pad = id_pad
+
+    @staticmethod
+    def _validate_constructor_args(id: list,
+                                   variable: list,
+                                   surface_type: list) -> tuple:
+
+        return _surface_construction_arg_validator(id,variable,surface_type)
     
     def collect_case_files(self):
         
-        self.fs.map_submit_folders(check_contents = ['.dat'])
+        """
+        collects all of the case files into a dictionary structure
+        where the key is the folder where the case file is contained
+        and the value is the file name
+        """
+
+        self.fs.map_submit_folders(check_contents = [FLUENT_DATA_EXT])
         case_files = {key: None for key in self.fs.submission_folder_list}
         for folder in self.fs.submission_folder_list:
             for f in folder.iterdir():
-                if '.cas' in f.name:
+                if FLUENT_CASE_EXT in f.name:
                     case_files[folder] = f
         
         return case_files
     
     def _local_surface_integral_collection(self) -> dict:
-
+        """
+        function to collect the surface integrals locally i.e. 
+        probably on a windows machine, and also invoking the 
+        fluent engine to generate the file
+        """
         case_files = self.collect_case_files()
 
         if self.folders:
@@ -398,23 +449,31 @@ class SurfaceIntegralBatch:
             si = SurfaceIntegrals(case_file,self.id,
                                        self.variable,
                                        self.surface_type,
-                                       engine = self.engine)
+                                       engine = self.engine,
+                                       id_pad = self.id_pad,
+                                       **self.engine_kwargs)
 
-            attr = si().read()
+            attr = [_si.read() for _si in si()]
             _,case = os.path.split(folder)
             self.surface_integrals[case] = attr
         
         return self.surface_integrals
     
     def _post_surface_integral_collection(self,name = None) -> dict:
-
+        """
+        function to collect the surface integrals locally on a windows machine
+        and NOT invoking the fluent engine - this assumes of course that the
+        file was generated at the end of a fluent case run
+        """
         if name is None:
             name = self.fs.case_file.name
         
-        self.fs.map_submit_folders(check_contents= ['.dat'])
+        self.fs.map_submit_folders(check_contents= [FLUENT_DATA_EXT])
         case_files = {key:os.path.join(key,name) 
                      for key in self.fs.submission_folder_list}
     
+        #optional argument here to only look at folders that are provided
+        #at class instiantation
         if self.folders:
             case_files = {folder:case_file for folder,case_file in case_files.items() 
                             if folder.name in self.folders}
@@ -424,10 +483,18 @@ class SurfaceIntegralBatch:
             si = SurfaceIntegrals(case_file,self.id,
                                        self.variable,
                                        self.surface_type,
-                                       engine = self.engine)
-            si.delete = False
-            sif = SurfaceIntegralFile(si.file_name)
-            attr = sif.read()
+                                       engine = self.engine,
+                                       id_pad = self.id_pad,
+                                       **self.engine_kwargs)
+           
+            for key in si.delete:
+                si.delete[key] = False
+            
+            attr = []
+            for id,variable,surface_type in zip(self.id,self.variable,self.surface_type):
+                sif = SurfaceIntegralFile(si.file_name(id,surface_type,variable))
+                attr.append(sif.read())
+            
             _,case = os.path.split(folder)
             self.surface_integrals[case] = attr
         
@@ -443,36 +510,146 @@ class SurfaceIntegralBatch:
                 return self._local_surface_integral_collection()
             else:
                 return self._post_surface_integral_collection(name = name)
+        
+        else:
+            raise NotImplementedError('havent implmemented methods for pace')
 
     
     def readdf(self, run_fluent = False,
                      name = None):
         """ 
         parse the collected surface integrals files into a dataframe
+
+        if some files or entries are not found across files, these 
+        values will be filled in with nan to avoid erroring out.
+
+        good work, very elegant 11.3.2021 
         """
+        
+        #collect the data information i.e. the name of the data values
+        #and the values themselves
         self.collect_surface_integrals(run_fluent,name = name)
         data_dict = {}
-        cols = []
-        flag = True
-        for case,attr in self.surface_integrals.items():
-            if attr['boundary'] is not None and flag:
-                cols = attr['boundary']
-                flag = False
-            
-            data_dict[case] = attr['value']
         
-        (index,data) = zip(*data_dict.items())
+        for case,attrs in self.surface_integrals.items():
+            unknown_num = -1
+            data_dict[case] = {}
+            for attr in attrs:
+                #handle the occasional absence of the boundary
+                if attr['boundary'] is not None:
+                    for boundary,value in zip(attr['boundary'],attr['value']):
+                        if boundary == 'Net':
+                            boundary_name = 'Net: ' + ''.join([attr['boundary'][i] + '-' for i in range(len(attr['boundary'])-1)])
+                        else:
+                            boundary_name = boundary + '-'
+                        name = attr['type'] + '-' + boundary_name  +  attr['name'] + ' ' + attr['unit']
+                        data_dict[case][name] = value
+                else:
+                    name = attr['type'] + ':' + str(unknown_num) + ':'
+                    name += attr['name'] + ' ' + attr['unit']
+                    data_dict[case][name] = attr['value'][0] 
         
+        #parse the columns -padding additonal values with nan into an array
+        all_cols = list(set([dat for sublist in data_dict.values() for dat in sublist.keys()]))
+
+        array = np.empty([len(self.surface_integrals),len(all_cols)])
+        array[:] = np.nan
+        index = []
+        for i,(case,data) in enumerate(data_dict.items()):
+            index.append(case)
+            for j,col in enumerate(all_cols):
+                try:
+                    array[i,j] = data[col]
+                except KeyError:
+                    pass
+
         try:
-            self.df = pd.DataFrame(data,index = pd.Series(index),
-                               columns = cols,dtype = float)
+            self.df = pd.DataFrame(array,index = pd.Series(index),
+                                   columns = all_cols,dtype = float)
+            return self.df
         except ValueError as v:
-            raise ValueError("This can happen if multiple values are in file when they are not supposed to be: {}".format(str(v)))
-        return self.df
+            raise ValueError("This can happen in the (rare) case if multiple values are in file when they are not supposed to be: {}".format(str(v)))
+        
+        
+def sort_list_of_lists_by_list_len(input_list: list) -> list:
 
+    list_len = [len(inner) for inner in input_list]
+    permutation = sorted(range(len(list_len)), key = lambda t: list_len[t])
 
-                    
-                    
+    return permutation
+
+def apply_permutation_to_list(input_list: list,
+                              permutation: list) -> list:
+
+    return [input_list[i] for i in permutation]
+
+def _surface_construction_arg_validator(id: list,
+                                        variable: list,
+                                        surface_type: list) -> tuple:
+
+    """
+    static function meant to validate the construction arguments
+    also converts all of the arguments
+    id,variable,surface_type 
+
+    into lists by default so that multiple evaluations may be made with a single
+    fluent engine call. If the input is a str for each of these, the list
+    will be a len = 1 list.
+    """
+
+    return_tuple = []
+    variable_names = ['id','variable','surface_type']
+    len_list = 0
+    cc= 0
+    for list_or_str,var_name in zip([id,variable,surface_type],variable_names):
+        if isinstance(list_or_str,str):
+            return_tuple.append([list_or_str])
+        elif isinstance(list_or_str,list):
+            if var_name == 'id':
+                to_append = []
+                for item in list_or_str:
+                    if isinstance(item,str) or isinstance(item,int):
+                        to_append.append([str(item)])
+                    elif isinstance(item,list):
+                        inner_append = []
+                        for inner_item in item:
+                            inner_append.append(str(inner_item))
+                        
+                        to_append.append(inner_append)
+                    else:
+                        raise ValueError('ids may only be specified as integer or strings')
+                
+                return_tuple.append(to_append)
+
+            else:
+                for item in list_or_str:
+                    if not isinstance(item,str):
+                        raise ValueError('{} may only be specified as strings'.format(var_name))
+                
+                return_tuple.append(list_or_str)
+
+        elif isinstance(list_or_str,int) and var_name == 'id':
+            return_tuple.append([str(list_or_str)])
+        else:
+            raise ValueError('argument: {} must be a string or a list'.format(var_name))
+        
+        if cc == 0:
+            len_list = len(return_tuple[0])
+        
+        if len(return_tuple[-1]) != len_list:
+            raise ValueError('All input variables must be lists of the same length')
+
+        cc+=1
+
+    #getting some really weird bugs if the number of id's is not
+    #greater than or equal to the previous number of listed id's
+    #on multiple surface integral evaluations
+    _return_tuple = []
+    len_perm = sort_list_of_lists_by_list_len(return_tuple[0])
+    for rt in return_tuple:
+        _return_tuple.append(apply_permutation_to_list(rt,len_perm))
+        
+    return tuple(_return_tuple) 
 
     
     

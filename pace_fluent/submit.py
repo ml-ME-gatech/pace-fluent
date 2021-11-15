@@ -522,6 +522,7 @@ class BatchSubmissionSummary:
         
         folders = []
         self.filesys.solution_files
+        print('here')
         for solution_file in self.filesys.solution_files.keys:
             with self.filesys.solution_files[solution_file] as sf:
                 if sf.STATUS:
@@ -535,7 +536,7 @@ class BatchSubmissionSummary:
         dfolders = self.get_folders_with_data()
         cfolders = self.get_folders_with_case()
         sfolders = self.get_folders_with_solution()
-        rfolders = self.get_folders_with_solution()
+        rfolders = self.get_folders_with_report_file()
         csfolders = self.get_folders_with_completed_solution()
 
         index = np.array(list(set(dfolders + cfolders + sfolders + rfolders + csfolders)))
