@@ -5,7 +5,7 @@ import os
 import sys
 
 #other package imports
-from wbfluentpy.io.classes import ReportFilesOut,SolutionFiles
+from fluentpy.io.classes import ReportFilesOut,SolutionFiles
 
 """
 Author: Michael Lanahan

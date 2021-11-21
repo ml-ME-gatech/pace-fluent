@@ -5,7 +5,7 @@ from copy import deepcopy
 import math
 
 #package imports
-from .base import SerializableClass
+from fluentpy.io.disk import SerializableClass
 
 """
 Author: Michael Lanahan

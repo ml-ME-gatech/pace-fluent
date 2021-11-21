@@ -3,7 +3,7 @@ from pandas import DataFrame,Series
 import numpy as np
 
 #package imports
-from .fluent import PressureOutlet,FluentFluidBoundaryCondition, MassFlowInlet, WallBoundaryCondition
+from fluentpy.tui.fluent import PressureOutlet,FluentFluidBoundaryCondition, MassFlowInlet, WallBoundaryCondition
 
 """"
 Author: Michael Lanahan

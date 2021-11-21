@@ -1,23 +1,19 @@
 #native imports
 from abc import ABC
-from typing import Collection, Iterable, Type, Union
+from typing import Iterable, Union
 import os
-from pandas.core.accessor import CachedAccessor
 from pandas.core.frame import DataFrame
 import numpy as np
 import shutil
 from pathlib import Path, PosixPath,WindowsPath
 from collections.abc import MutableMapping
-import dill
 import pandas as pd
 import json
 
-from wbfluentpy.io.classes import SolutionFile
-
 #package imports
-from .base import SerializableClass
+from fluentpy.io.disk import SerializableClass
 from .pbs import FluentPBS
-from .fluent import BatchCaseReader, FluentRun, LINE_BREAK
+from fluentpy.tui.fluent import BatchCaseReader, FluentRun, LINE_BREAK
 from .util import partition_boundary_table
 from .filesystem import TableFileSystem
 
