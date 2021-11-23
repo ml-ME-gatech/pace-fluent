@@ -11,7 +11,7 @@ import pandas as pd
 import json
 
 #package imports
-from fluentpy.io.disk import SerializableClass
+from fluentpy.fluentio.disk import SerializableClass
 from .pbs import FluentPBS
 from fluentpy.tui.fluent import BatchCaseReader, FluentRun, LINE_BREAK
 from .util import partition_boundary_table

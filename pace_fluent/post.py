@@ -6,14 +6,14 @@ import pandas as pd
 from pathlib import WindowsPath,PosixPath
 import shutil
 
-from fluentpy.io.classes import SurfaceIntegralFile
+from fluentpy.fluentio.classes import SurfaceIntegralFile
 from fluentpy.tui.fluent import SurfaceIntegrals
 from fluentpy.tui.util import _surface_construction_arg_validator
 
 #package imports
 from .submit import FluentBatchSubmission
 from .filesystem import TableFileSystem
-from fluentpy.engines import FluentEngine
+from fluentpy.tui import FluentEngine
 
 """
 Author: Michael Lanahan
